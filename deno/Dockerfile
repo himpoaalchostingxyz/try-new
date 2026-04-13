@@ -7,8 +7,10 @@ ENV FILEBROWSER_ROOT=/app/downloads
 ENV FB_USERNAME=admin
 ENV FB_PASSWORD=oga123456789
 
+# Install dependencies
 RUN apk add --no-cache curl ca-certificates
 
+# Download cloudflared (multi‑arch)
 ARG TARGETARCH
 RUN case "${TARGETARCH}" in \
         amd64)  CF_URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64" ;; \
@@ -18,6 +20,7 @@ RUN case "${TARGETARCH}" in \
     curl -L --retry 5 --fail -o /usr/local/bin/cloudflared "$CF_URL" && \
     chmod +x /usr/local/bin/cloudflared
 
+# Download filebrowser (multi‑arch)
 RUN case "${TARGETARCH}" in \
         amd64)  FB_URL="https://github.com/filebrowser/filebrowser/releases/latest/download/linux-amd64-filebrowser.tar.gz" ;; \
         arm64)  FB_URL="https://github.com/filebrowser/filebrowser/releases/latest/download/linux-arm64-filebrowser.tar.gz" ;; \
@@ -26,35 +29,54 @@ RUN case "${TARGETARCH}" in \
     curl -L --retry 5 --fail "$FB_URL" | tar xz -C /usr/local/bin/ filebrowser && \
     chmod +x /usr/local/bin/filebrowser
 
+# Create directories
 RUN mkdir -p ${FILEBROWSER_ROOT} /config/filebrowser
 
-# Startup script: reset DB, set credentials, start services
+# Startup script
 RUN cat > /custom-init.sh << 'EOF'
 #!/bin/sh
+
 DB_PATH="/config/filebrowser/filebrowser.db"
 
-# Force fresh database
+# Reset and configure FileBrowser
 rm -f "$DB_PATH"
 filebrowser config init --database="$DB_PATH"
-filebrowser config set --address=0.0.0.0 --port=$FILEBROWSER_PORT --root=$FILEBROWSER_ROOT --database="$DB_PATH"
-filebrowser users add "$FB_USERNAME" "$FB_PASSWORD" --database="$DB_PATH" --perm.admin
+filebrowser config set \
+    --address=0.0.0.0 \
+    --port=$FILEBROWSER_PORT \
+    --root=$FILEBROWSER_ROOT \
+    --database="$DB_PATH"
+filebrowser users add \
+    "$FB_USERNAME" "$FB_PASSWORD" \
+    --database="$DB_PATH" \
+    --perm.admin
 
 echo "FileBrowser credentials: $FB_USERNAME / $FB_PASSWORD"
 echo "FileBrowser serving: $FILEBROWSER_ROOT"
 
-# Start FileBrowser
+# Start FileBrowser in background
 /usr/local/bin/filebrowser --database="$DB_PATH" &
+FB_PID=$!
 
+# Wait for services to bind
 sleep 2
 
-echo "Starting Cloudflare tunnel for qBittorrent (port $WEBUI_PORT)..."
+# Start Cloudflare tunnel for qBittorrent (port 8000)
+echo "Starting tunnel for qBittorrent (port $WEBUI_PORT)..."
 /usr/local/bin/cloudflared tunnel --url http://localhost:$WEBUI_PORT --no-autoupdate &
+CF_QBT_PID=$!
 
-echo "Starting Cloudflare tunnel for FileBrowser (port $FILEBROWSER_PORT)..."
+# Start Cloudflare tunnel for FileBrowser (port 8080)
+echo "Starting tunnel for FileBrowser (port $FILEBROWSER_PORT)..."
 /usr/local/bin/cloudflared tunnel --url http://localhost:$FILEBROWSER_PORT --no-autoupdate &
+CF_FB_PID=$!
 
+echo "All services started. qBittorrent tunnel PID: $CF_QBT_PID, FileBrowser tunnel PID: $CF_FB_PID"
+
+# Run the original s6 init (starts qBittorrent)
 exec /init
 EOF
+
 RUN chmod +x /custom-init.sh
 
 EXPOSE 8000 6881 6881/udp 8080
