@@ -32,6 +32,21 @@ RUN case "${TARGETARCH}" in \
 # Create directories
 RUN mkdir -p ${FILEBROWSER_ROOT} /config/filebrowser
 
+# ------------------------------------------------------------
+# Fix permissions: cont-init script runs after user is created
+# ------------------------------------------------------------
+RUN mkdir -p /etc/cont-init.d && \
+    cat > /etc/cont-init.d/99-fix-downloads-perms << 'EOF'
+#!/usr/bin/with-contenv bash
+# This runs after the abc user is created (with PUID/PGID)
+if [ -d /app/downloads ]; then
+    echo "Fixing ownership of /app/downloads to abc:abc"
+    chown -R abc:abc /app/downloads
+    chmod 755 /app/downloads
+fi
+EOF
+RUN chmod +x /etc/cont-init.d/99-fix-downloads-perms
+
 # Startup script
 RUN cat > /custom-init.sh << 'EOF'
 #!/bin/sh
