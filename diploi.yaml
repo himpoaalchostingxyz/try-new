@@ -1,0 +1,10 @@
+# This file is used to build the infrastructure for a deployment.
+# After editing something here, apply the changes on the Diploi dashboard.
+# For more information, see https://diploi.com/yaml
+
+diploiVersion: v1.0
+components:
+  - name: Deno
+    identifier: deno
+    package: https://github.com/diploi/component-deno#v2.5.0
+addons: []
