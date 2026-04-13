@@ -5,7 +5,7 @@ ENV TORRENTING_PORT=6881
 ENV FILEBROWSER_PORT=8080
 ENV FILEBROWSER_ROOT=/app/downloads
 ENV FB_USERNAME=admin
-ENV FB_PASSWORD=admin
+ENV FB_PASSWORD=oga123456789
 
 RUN apk add --no-cache curl ca-certificates
 
@@ -28,12 +28,12 @@ RUN case "${TARGETARCH}" in \
 
 RUN mkdir -p ${FILEBROWSER_ROOT} /config/filebrowser
 
-# Custom startup script: reset DB each time to ensure admin/admin, then start services
+# Startup script: reset DB, set credentials, start services
 RUN cat > /custom-init.sh << 'EOF'
 #!/bin/sh
 DB_PATH="/config/filebrowser/filebrowser.db"
 
-# Force re-initialize database to avoid credential mismatch
+# Force fresh database
 rm -f "$DB_PATH"
 filebrowser config init --database="$DB_PATH"
 filebrowser config set --address=0.0.0.0 --port=$FILEBROWSER_PORT --root=$FILEBROWSER_ROOT --database="$DB_PATH"
