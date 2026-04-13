@@ -1,24 +1,12 @@
-FROM ubuntu:22.04
+FROM lscr.io/linuxserver/qbittorrent:latest
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Set internal web UI port to 8000 (default is 8080)
 ENV WEBUI_PORT=8000
 
-# Install qbittorrent-nox and dependencies
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && add-apt-repository ppa:qbittorrent-team/qbittorrent-stable -y \
-    && apt-get update \
-    && apt-get install -y qbittorrent-nox \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Set torrenting port (optional, but matches your compose)
+ENV TORRENTING_PORT=6881
 
-# Create a non-root user (optional but recommended)
-RUN useradd -m -s /bin/bash qbt && \
-    mkdir -p /config /downloads && \
-    chown -R qbt:qbt /config /downloads
-
-# Expose web UI port and BT ports
-EXPOSE 8000 6881 6881/udp
-
-# Start qbittorrent-nox with web UI on port 8000
-CMD ["qbittorrent-nox", "--webui-port=8000", "--profile=/config"]
+# Expose ports (same as in compose)
+EXPOSE 8000
+EXPOSE 6881
+EXPOSE 6881/udp
