@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     apt-transport-https \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    mesa-utils \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 ENV USER=root
